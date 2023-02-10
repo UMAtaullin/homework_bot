@@ -1,13 +1,14 @@
 import logging
 import os
 import time
+from http import HTTPStatus
 
 import requests
 import telegram
 from dotenv import load_dotenv
 from requests.exceptions import RequestException
 
-from exceptions import (ResponseError, StatusCodeError, TokenError)
+from exceptions import (StatusCodeError, TokenError)
 
 load_dotenv()
 
@@ -30,8 +31,6 @@ TOKENS = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID')
 
 API_ANSWER_ERROR = ('Ошибка подключения к API: {error}. '
                     'endpoint: {url}, headers: {headers}, params: {params}')
-RESPONSE_ERROR = ('Отказ от обслуживания: {error}, key {key}. '
-                  'endpoint: {url}, headers: {headers}, params: {params}')
 STATUS_CODE_ERROR = ('Ошибка при запросе к API: '
                      'status_code: {status_code}, endpoint: {url}, '
                      'headers: {headers}, params: {params}')
@@ -70,7 +69,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(timestamp):
-    """Отправляем запрос к API и проверяем статус 200."""
+    """Отправляем запрос к API и проверяем статус кода."""
     parameters = dict(
         url=ENDPOINT,
         headers=HEADERS,
@@ -81,18 +80,10 @@ def get_api_answer(timestamp):
         raise ConnectionError(
             API_ANSWER_ERROR.format(error=error, **parameters))
     status_code = response.status_code
-    if status_code != 200:
+    if status_code != HTTPStatus.OK:
         raise StatusCodeError(
             STATUS_CODE_ERROR.format(status_code=status_code, **parameters))
-    response_json = response.json()
-    for key in ('error', 'code'):
-        if key in response_json:
-            raise ResponseError(
-                RESPONSE_ERROR.format(
-                    error=response_json[key],
-                    key=key,
-                    **parameters))
-    return response_json
+    return response.json()
 
 
 def check_response(response):
@@ -100,11 +91,10 @@ def check_response(response):
     if type(response) is not dict:
         raise TypeError('Ответ API не является словарем')
     if 'homeworks' not in response:
-        raise KeyError('Отсутствует ключ homeworks')
+        raise KeyError('В ответе от API отсутствует ключ homeworks')
     homeworks = response['homeworks']
     if type(homeworks) is not list:
-        raise TypeError(
-            'Под ключом `homeworks` домашки приходят не в виде списка')
+        raise TypeError('Ожидаемый тип данных — список!')
     return response.get('homeworks')
 
 
