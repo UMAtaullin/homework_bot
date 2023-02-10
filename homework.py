@@ -8,7 +8,7 @@ import telegram
 from dotenv import load_dotenv
 from requests.exceptions import RequestException
 
-from exceptions import (StatusCodeError, TokenError)
+from exceptions import (SendMessageException, StatusCodeError, TokenError)
 
 load_dotenv()
 
@@ -65,7 +65,7 @@ def send_message(bot, message):
         logging.info('Отправлено сообщение: "{}"'.format(message))
     except telegram.error.TelegramError as error:
         logging.error(f'Не удалось отправить сообщение в telegram: {error}')
-        raise Exception(error)
+        raise SendMessageException(logging.error)
 
 
 def get_api_answer(timestamp):
@@ -83,31 +83,37 @@ def get_api_answer(timestamp):
     if status_code != HTTPStatus.OK:
         raise StatusCodeError(
             STATUS_CODE_ERROR.format(status_code=status_code, **parameters))
-    return response.json()
+    try:
+        return response.json()
+    except json.JSONDecodeError:
+        logging.error('Сервер вернул невалидный ответ')
+        send_message('Сервер вернул невалидный ответ')
 
 
 def check_response(response):
     """Проверка ответа API на корректность."""
-    if type(response) is not dict:
-        raise TypeError('Ответ API не является словарем')
-    if 'homeworks' not in response:
+    if not isinstance(response, dict):
+        raise TypeError('Ожидаемый тип данных — словарь!')
+    if 'homeworks' not in response or 'current_date' not in response:
         raise KeyError('В ответе от API отсутствует ключ homeworks')
-    homeworks = response['homeworks']
-    if type(homeworks) is not list:
+    homeworks = response.get('homeworks')
+    if not isinstance(homeworks, list):
         raise TypeError('Ожидаемый тип данных — список!')
-    return response.get('homeworks')
+    return homeworks
 
 
 def parse_status(homework):
     """Извлечение статуса работы."""
-    status = homework['status']
     if 'homework_name' not in homework:
         raise KeyError('Не найден ключ "homework_name"!')
-    if status not in HOMEWORK_VERDICTS:
-        raise ValueError('Неизвестный статус: {}'.format(status))
-    return ('Изменился статус проверки работы "{}". {}'.format(
-        homework['homework_name'],
-        HOMEWORK_VERDICTS.get(status)))
+    homework_name = homework.get('homework_name')
+    homework_status = homework.get('status')
+    if homework_status not in HOMEWORK_VERDICTS:
+        raise ValueError(f'Неизвестный статус работы - {homework_status}')
+    return ('Изменился статус проверки работы "{homework_name}". {verdict}'
+            ).format(homework_name=homework_name,
+                     verdict=HOMEWORK_VERDICTS.get(homework_status)
+                     )
 
 
 def main():

@@ -1,5 +1,15 @@
+class NotForSend(Exception):
+    """Исключение не для пересылки в telegram."""
+    pass
+
+
 class StatusCodeError(Exception):
     """Ошибка запроса."""
+    pass
+
+
+class SendMessageException(Exception):
+    """Ошибка отправки сообщения в telegram."""
     pass
 
 
