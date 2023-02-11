@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -8,7 +9,7 @@ import telegram
 from dotenv import load_dotenv
 from requests.exceptions import RequestException
 
-from exceptions import (SendMessageException, StatusCodeError, TokenError)
+from exceptions import SendMessageException, StatusCodeError, TokenError
 
 load_dotenv()
 
@@ -86,8 +87,7 @@ def get_api_answer(timestamp):
     try:
         return response.json()
     except json.JSONDecodeError:
-        logging.error('Сервер вернул невалидный ответ')
-        send_message('Сервер вернул невалидный ответ')
+        logging.exception('Сервер вернул невалидный ответ')
 
 
 def check_response(response):
@@ -105,7 +105,7 @@ def check_response(response):
 def parse_status(homework):
     """Извлечение статуса работы."""
     if 'homework_name' not in homework:
-        raise KeyError('Не найден ключ "homework_name"!')
+        raise KeyError('Не найден ключ homework_name!')
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if homework_status not in HOMEWORK_VERDICTS:
