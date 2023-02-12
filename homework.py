@@ -3,26 +3,28 @@ import logging
 import os
 import time
 from http import HTTPStatus
+from typing import Dict, List
 
 import requests
 import telegram
 from dotenv import load_dotenv
 from requests.exceptions import RequestException
+from telegram import Bot
 
 from exceptions import SendMessageException, StatusCodeError, TokenError
 
 load_dotenv()
 
-PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+PRACTICUM_TOKEN: str = os.getenv('PRACTICUM_TOKEN')
+TELEGRAM_TOKEN: str = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
 
-RETRY_PERIOD = 600
+RETRY_PERIOD: int = 600
 ONE_MONTH = 3600 * 24 * 30
-ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
-HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
+ENDPOINT: str = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
+HEADERS: Dict[str, str] = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
-HOMEWORK_VERDICTS = {
+HOMEWORK_VERDICTS: Dict[str, str] = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -37,7 +39,7 @@ STATUS_CODE_ERROR = ('Ошибка при запросе к API: '
                      'headers: {headers}, params: {params}')
 
 
-def logging_setup():
+def logging_setup() -> None:
     """Настраивает логи."""
     logging.basicConfig(
         format=('{asctime} - {levelname} - {name} - '
@@ -48,7 +50,7 @@ def logging_setup():
     )
 
 
-def check_tokens():
+def check_tokens() -> bool:
     """Проверка наличия токенов."""
     flag = True
     for name in TOKENS:
@@ -58,7 +60,7 @@ def check_tokens():
     return flag
 
 
-def send_message(bot, message):
+def send_message(bot: Bot, message: str) -> None:
     """Отправляет сообщение в telegram."""
     try:
         logging.debug('Попытка отправки сообщения в telegram')
@@ -69,7 +71,7 @@ def send_message(bot, message):
         raise SendMessageException(logging.error)
 
 
-def get_api_answer(timestamp):
+def get_api_answer(timestamp: int) -> Dict[str, List[dict]]:
     """Отправляем запрос к API и проверяем статус кода."""
     parameters = dict(
         url=ENDPOINT,
@@ -90,11 +92,11 @@ def get_api_answer(timestamp):
         logging.exception('Сервер вернул невалидный ответ')
 
 
-def check_response(response):
+def check_response(response: Dict[str, List[dict]]) -> dict:
     """Проверка ответа API на корректность."""
     if not isinstance(response, dict):
         raise TypeError('Ожидаемый тип данных — словарь!')
-    if 'homeworks' not in response or 'current_date' not in response:
+    if 'homeworks' not in response and 'current_date' not in response:
         raise KeyError('В ответе от API отсутствует ключ homeworks')
     homeworks = response.get('homeworks')
     if not isinstance(homeworks, list):
@@ -102,10 +104,12 @@ def check_response(response):
     return homeworks
 
 
-def parse_status(homework):
+def parse_status(homework: dict) -> str:
     """Извлечение статуса работы."""
     if 'homework_name' not in homework:
         raise KeyError('Не найден ключ homework_name!')
+    if 'status' not in homework:
+        raise KeyError('Не найден ключ status!')
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if homework_status not in HOMEWORK_VERDICTS:
@@ -116,7 +120,7 @@ def parse_status(homework):
                      )
 
 
-def main():
+def main() -> None:
     """Основная логика работы бота."""
     if not check_tokens():
         raise TokenError('Ошибка в токенах!')
