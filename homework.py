@@ -107,6 +107,8 @@ def check_response(response: Dict[str, List[dict]]) -> dict:
 
 def parse_status(homework: dict) -> str:
     """Извлечение статуса работы."""
+    if not isinstance(homework, dict):
+        raise TypeError('Ожидаемый тип данных — словарь!')
     if 'homework_name' not in homework:
         raise KeyError('Не найден ключ homework_name!')
     if 'status' not in homework:
@@ -137,12 +139,15 @@ def main() -> None:
             if homeworks:
                 send_message(bot, parse_status(homeworks[0]))
             timestamp = response.get('current_date', timestamp)
-        except exceptions.SendMessageException as error:
+        except exceptions.SendMessageException:
+            message = 'Не удалось отправить сообщение в telegram'
+            logging.info(message)
+        except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.exception(message)
             try:
                 bot.send_message(TELEGRAM_CHAT_ID, message)
-            except exceptions.SendMessageException as error:
+            except Exception as error:
                 logging.exception(
                     'Ошибка при отправке сообщения: {}'.format(error))
         time.sleep(RETRY_PERIOD)
