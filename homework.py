@@ -3,7 +3,7 @@ import logging
 import os
 import time
 from http import HTTPStatus
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import requests
 import telegram
@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from requests.exceptions import RequestException
 from telegram import Bot
 
+import exceptions
 from exceptions import SendMessageException, StatusCodeError, TokenError
 
 load_dotenv()
@@ -20,7 +21,7 @@ TELEGRAM_TOKEN: str = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD: int = 600
-ONE_MONTH = 3600 * 24 * 30
+ONE_MONTH: int = 3600 * 24 * 30
 ENDPOINT: str = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS: Dict[str, str] = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -30,13 +31,13 @@ HOMEWORK_VERDICTS: Dict[str, str] = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-TOKENS = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID')
+TOKENS: Tuple[str] = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID')
 
-API_ANSWER_ERROR = ('Ошибка подключения к API: {error}. '
-                    'endpoint: {url}, headers: {headers}, params: {params}')
-STATUS_CODE_ERROR = ('Ошибка при запросе к API: '
-                     'status_code: {status_code}, endpoint: {url}, '
-                     'headers: {headers}, params: {params}')
+API_ANSWER_ERROR: str = ('Ошибка подключения к API: {error}. endpoint: {url}, '
+                         'headers: {headers}, params: {params}')
+STATUS_CODE_ERROR: str = ('Ошибка при запросе к API: '
+                          'status_code: {status_code}, endpoint: {url}, '
+                          'headers: {headers}, params: {params}')
 
 
 def logging_setup() -> None:
@@ -136,12 +137,12 @@ def main() -> None:
             if homeworks:
                 send_message(bot, parse_status(homeworks[0]))
             timestamp = response.get('current_date', timestamp)
-        except Exception as error:
+        except exceptions.SendMessageException as error:
             message = f'Сбой в работе программы: {error}'
             logging.exception(message)
             try:
                 bot.send_message(TELEGRAM_CHAT_ID, message)
-            except Exception as error:
+            except exceptions.SendMessageException as error:
                 logging.exception(
                     'Ошибка при отправке сообщения: {}'.format(error))
         time.sleep(RETRY_PERIOD)
